@@ -1,26 +1,34 @@
 defmodule Tablature do
   def parse(tab) do
+    tab
+    |> String.split()  # Divide por líneas
+    |> Enum.chunk_every(6, 6)  # Agrupa de 6 en 6 líneas
+    |> Enum.map(fn bloque -> Enum.join(bloque, " ") end)  # Une cada bloque en un string
+    |> Enum.map(fn segmento -> parse_segment(segmento) end)  # Procesa cada bloque
+    |> Enum.join(" ")  # Une todo en un solo string
+  end
+
+  def parse_segment(segment) do
     notas =
-      tab
-      |> String.split()
-      |> Enum.map(fn line -> parse_line(line) end)
+      segment
+      |> String.split()  # Divide en líneas individuales
+      |> Enum.map(fn linea -> parse_line(linea) end)
       |> List.flatten()
-      |> Enum.filter(fn {_nota, i} -> rem(i, 2) != 0 end)
 
-    grouped = Enum.group_by(notas, fn {_nota, i} -> i end) #%{1 => [{"D7", 1},{"D1", 1}, {"A7", 1}] }  Es este tipo de dato
+    grouped = Enum.group_by(notas, fn {_, i} -> i end) #%{1 => [{"D7", 1},{"D1", 1}, {"A7", 1}] }  Es este tipo de dato
 
-    indices = # Se optiene una lista de indices [1,2,3]
-      grouped
-      |> Map.keys()
-      |> Enum.sort()
+    {min_i, max_i} =
+      notas
+      |> Enum.map(fn {_, i} -> i end)
+      |> Enum.min_max()  # Obtiene el mínimo y máximo índice
 
-    # Devuelve todos los elementos de la lista que tengan el mismo indice
-    # Si i = 1 entones lo que recibe same_index es una lista de tuplas[{"D7", 1}, {"D1", 1}, {"A7", 1}]
-    indices
-    |> Enum.map(fn i ->
-      same_index(Map.get(grouped, i))
-    end)
-    |> Enum.join(" ")
+
+      (min_i..max_i)
+      |> Enum.filter(fn i ->
+        rem(i, 2) != 0 and Map.has_key?(grouped, i) # Se pasan por indices impares y que existan dentro de grouped
+        end)
+      |> Enum.map(fn i -> same_index(Map.get(grouped, i)) end) # Si i = 1 entones lo que recibe same_index es una lista de tuplas[{"D7", 1}, {"D1", 1}, {"A7", 1}]
+      |> Enum.join(" ")
   end
 
   def parse_line(line) do
@@ -30,24 +38,23 @@ defmodule Tablature do
     |> String.graphemes()
     |> Enum.with_index()
     |> Enum.filter(fn {char, i} ->
-      rem(i, 2) != 0 and (char =~ ~r/\d/ or char == "-") # Se toman indices impares y que sean numeros o "-"
+      rem(i, 2) != 0 and (char =~ ~r/\d/ or char == "-") # Indices impares de números o guiones
     end)
     |> Enum.map(fn
-      {nota, i} when nota == "-" -> {"-", i} # Si la nota "-" se devuelve como esta
-      {nota, i} -> {letter <> nota, i} # Si la nota no es "-" se concatena la letra a la nota
+      {"-", i} -> {"-", i} # Si es guion se queda tal cual
+      {num, i} -> {letter <> num, i}
     end)
   end
 
   def same_index(lista) do
-    notas = Enum.map(lista, fn {nota, _i} -> nota end)
+    notas = Enum.map(lista, fn {nota, _} -> nota end)
 
-    # notas es []
-    if Enum.all?(notas, fn nota -> nota == "-" end) do # En caso de que todos los elementos de la lista sean "-"
-      "_" # Es un silencio
+    if Enum.all?(notas, fn nota -> nota == "-" end) do
+      "_"
     else
       notas
-      |> Enum.reject(fn x -> x == "-" end) # Se ignoran los "-"
-      |> Enum.join("/") # Se unen las notas con "/"
+      |> Enum.reject(fn nota -> nota == "-" end)
+      |> Enum.join("/")
     end
   end
 end

@@ -80,7 +80,6 @@ defmodule TablatureTest do
     assert Tablature.parse(tab) == expected
   end
 
-  @tag :skip
   test "Stairway to Heaven (multiple segments)" do
     tab = """
           e|-------5-7-----7-|-8-----8-2-----2-|-0---------0-----|-----------------|
